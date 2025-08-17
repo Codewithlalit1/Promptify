@@ -21,9 +21,29 @@ const BuyCredits = () => {
     order_id: order.id,
     receipt: order.receipt,
     handler: async (response) => {
-      console.log(response);
+        try {
+          const { data } = await axios.post(
+            backendUrl + "/api/user/verify",
+            {
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              transactionId: order.receipt
+            },
+            { headers: { token } }
+          )
+          if (data.success) {
+            toast.success("Payment successful")
+            loadCreditsData()
+            navigate("/")
+          } else {
+            toast.error("Payment verification failed")
+          }
+        } catch (error) {
+          toast.error("Payment verification error")
+        }
+      }
     }
-  };
   const rzp = new window.Razorpay(options);
   rzp.open();
 };

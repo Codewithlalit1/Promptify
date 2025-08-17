@@ -46,4 +46,4 @@ const NavBar = () => {
 
 export default NavBar
 
-// link tag is used such that on clicking the logo images this will redirect to Home page   
+// link tag is used such that on clicking the logo images this will redirect to Home page  

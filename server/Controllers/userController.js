@@ -87,9 +87,11 @@ const razorpayInstance = new Razorpay({
 
 const paymentRazorpay = async(req,res)=>{
     try{
-        const {userId,planId}=req.body;
+        const userId = req.userId;
+        const { planId } = req.body;
+
         const userData = await useModel.findById(userId)
-        if(!userId || !planId){
+         if(!userId || !planId){
             return res.json({success:false,message:'Missing Details'});
         }
 
@@ -97,19 +99,19 @@ const paymentRazorpay = async(req,res)=>{
 
         switch(planId){
             case 'Basic':
-                plan  = 'Basic',
-                credits = 100,
-                amount = 10
+                plan  = 'Basic';
+                credits = 100;
+                amount = 10;
                 break;
            case 'Advanced':
-                plan  = 'Advanced',
-                credits = 500,
-                amount = 50
+                plan  = 'Advanced';
+                credits = 500;
+                amount = 50;
                 break;     
             case 'Business':
-                plan  = 'Business',
-                credits = 5000,
-                amount = 250
+                plan  = 'Business';
+                credits = 5000;
+                amount = 250;
                 break;
 
             default :
@@ -118,7 +120,7 @@ const paymentRazorpay = async(req,res)=>{
         date = Date.now();
 
         const transactionData = {
-            userId,plan,amount,credits,date 
+            userId,plan,amount,credits,date,payment: false 
         }
         const newTransaction = await transactionModel.create(transactionData)
 
@@ -143,4 +145,34 @@ const paymentRazorpay = async(req,res)=>{
     }
 }
 
-export { registerUser, loginUser, userCredits,paymentRazorpay };
+const verifyPayment = async (req, res) => {
+    try {
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, transactionId } = req.body;
+
+        
+        const crypto = await import('crypto');
+        const expectedSignature = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+            .update(razorpay_order_id + "|" + razorpay_payment_id)
+            .digest('hex');
+
+        if (expectedSignature !== razorpay_signature) {
+            return res.status(400).json({ success: false, message: 'Invalid payment signature' });
+        }
+
+        await transactionModel.findByIdAndUpdate(transactionId, { payment: true });
+
+        const transaction = await transactionModel.findById(transactionId);
+        await useModel.findByIdAndUpdate(transaction.userId, {
+            $inc: { creditBalance: transaction.credits }
+        });
+
+        res.json({ success: true, message: 'Payment verified and credits added' });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+
+export { registerUser, loginUser, userCredits,paymentRazorpay , verifyPayment };
